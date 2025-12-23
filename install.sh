@@ -11,34 +11,36 @@ BOLD="\033[1m"
 GRAY="\033[1;30m"
 
 # Variabel Repositori Menu Control
-REPO_KLONING="https://github.com/KjsZipvn/Kjsbot.git"
-REPO_DIR="/root/Kjsbot"
-MENU_SCRIPT="$REPO_DIR/menu.sh"
+REPO_OWNER="KjsZipvn"
+REPO_NAME="Kjsbot"
+REPO_KLONING="https://github.com/$REPO_OWNER/$REPO_NAME.git"
+REPO_DIR="/root/$REPO_NAME"
+MENU_CONTROL_SCRIPT="/root/control_menu.sh" # File yang akan di-download dan dijalankan .bashrc
 
 print_task() {
-  echo -ne "${GRAY}•${RESET} $1..."
+    echo -ne "${GRAY}•${RESET} $1..."
 }
 
 print_done() {
-  echo -e "\r${GREEN}✓${RESET} $1      "
+    echo -e "\r${GREEN}✓${RESET} $1          "
 }
 
 print_fail() {
-  echo -e "\r${RED}✗${RESET} $1      "
-  exit 1
+    echo -e "\r${RED}✗${RESET} $1          "
+    exit 1
 }
 
 run_silent() {
-  local msg="$1"
-  local cmd="$2"
-  
-  print_task "$msg"
-  bash -c "$cmd" &>/tmp/zivpn_install.log
-  if [ $? -eq 0 ]; then
-    print_done "$msg"
-  else
-    print_fail "$msg (Check /tmp/zivpn_install.log)"
-  fi
+    local msg="$1"
+    local cmd="$2"
+
+    print_task "$msg"
+    bash -c "$cmd" &>/tmp/zivpn_install.log
+    if [ $? -eq 0 ]; then
+        print_done "$msg"
+    else
+        print_fail "$msg (Check /tmp/zivpn_install.log)"
+    fi
 }
 
 clear
@@ -47,32 +49,32 @@ echo -e "${GRAY}KjsZivpn Edition${RESET}"
 echo ""
 
 if [[ "$(uname -s)" != "Linux" ]] || [[ "$(uname -m)" != "x86_64" ]]; then
-  print_fail "System not supported (Linux AMD64 only)"
+    print_fail "System not supported (Linux AMD64 only)"
 fi
 
 if [ -f /usr/local/bin/zivpn ]; then
-  echo -e "${YELLOW}! ZiVPN detected. Reinstalling...${RESET}"
-  systemctl stop zivpn.service &>/dev/null
-  systemctl stop zivpn-api.service &>/dev/null
-  systemctl stop zivpn-bot.service &>/dev/null
+    echo -e "${YELLOW}! ZiVPN detected. Reinstalling...${RESET}"
+    systemctl stop zivpn.service &>/dev/null
+    systemctl stop zivpn-api.service &>/dev/null
+    systemctl stop zivpn-bot.service &>/dev/null
 fi
 
 run_silent "Updating system" "sudo apt-get update"
 run_silent "Setting Timezone" "sudo timedatectl set-timezone Asia/Jakarta"
 
 if ! command -v go &> /dev/null; then
-  run_silent "Installing dependencies" "sudo apt-get install -y golang git net-tools"
+    run_silent "Installing dependencies" "sudo apt-get install -y golang git net-tools"
 else
-  print_done "Dependencies ready"
+    print_done "Dependencies ready"
 fi
 
 echo ""
 echo -ne "${BOLD}Domain Configuration${RESET}\n"
 while true; do
-  read -p "Enter Domain: " domain
-  if [[ -n "$domain" ]]; then
-    break
-  fi
+    read -p "Enter Domain: " domain
+    if [[ -n "$domain" ]]; then
+        break
+    fi
 done
 echo ""
 
@@ -81,9 +83,9 @@ generated_key=$(openssl rand -hex 16)
 echo -e "Generated Key: ${CYAN}$generated_key${RESET}"
 read -p "Enter API Key (Press Enter to use generated): " input_key
 if [[ -z "$input_key" ]]; then
-  api_key="$generated_key"
+    api_key="$generated_key"
 else
-  api_key="$input_key"
+    api_key="$input_key"
 fi
 echo -e "Using Key: ${GREEN}$api_key${RESET}"
 echo ""
@@ -94,7 +96,7 @@ run_silent "Downloading Core" "wget -q https://github.com/zahidbd2/udp-zivpn/rel
 mkdir -p /etc/zivpn
 echo "$domain" > /etc/zivpn/domain
 echo "$api_key" > /etc/zivpn/apikey
-run_silent "Configuring" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/config.json -O /etc/zivpn/config.json"
+run_silent "Configuring" "wget -q https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/config.json -O /etc/zivpn/config.json"
 
 run_silent "Generating SSL" "openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj '/C=ID/ST=Jawa Barat/L=Bandung/O=KjsZipvn/OU=IT Department/CN=$domain' -keyout /etc/zivpn/zivpn.key -out /etc/zivpn/zivpn.crt"
 
@@ -102,7 +104,7 @@ run_silent "Generating SSL" "openssl req -new -newkey rsa:4096 -days 365 -nodes 
 print_task "Finding available API Port"
 API_PORT=8080
 while netstat -tuln | grep -q ":$API_PORT "; do
-    ((API_PORT++))
+    ((API_PORT++))
 done
 echo "$API_PORT" > /etc/zivpn/api_port
 print_done "API Port selected: ${CYAN}$API_PORT${RESET}"
@@ -151,13 +153,13 @@ WantedBy=multi-user.target
 EOF
 
 mkdir -p /etc/zivpn/api
-run_silent "Setting up API" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/zivpn-api.go -O /etc/zivpn/api/zivpn-api.go && wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/go.mod -O /etc/zivpn/api/go.mod"
+run_silent "Setting up API" "wget -q https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/zivpn-api.go -O /etc/zivpn/api/zivpn-api.go && wget -q https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/go.mod -O /etc/zivpn/api/go.mod"
 
 cd /etc/zivpn/api
 if go build -o zivpn-api zivpn-api.go &>/dev/null; then
-  print_done "Compiling API"
+    print_done "Compiling API"
 else
-  print_fail "Compiling API"
+    print_fail "Compiling API"
 fi
 
 cat <<EOF > /etc/systemd/system/zivpn-api.service
@@ -184,37 +186,37 @@ read -p "Bot Token: " bot_token
 read -p "Admin ID : " admin_id
 
 if [[ -n "$bot_token" ]] && [[ -n "$admin_id" ]]; then
-  echo ""
-  echo "Select Bot Type:"
-  echo "1) Free (Admin Only / Public Mode)"
-  echo "2) Paid (Pakasir Payment Gateway)"
-  read -p "Choice [1]: " bot_type
-  bot_type=${bot_type:-1}
+    echo ""
+    echo "Select Bot Type:"
+    echo "1) Free (Admin Only / Public Mode)"
+    echo "2) Paid (Pakasir Payment Gateway)"
+    read -p "Choice [1]: " bot_type
+    bot_type=${bot_type:-1}
 
-  if [[ "$bot_type" == "2" ]]; then
-    read -p "Pakasir Project Slug: " pakasir_slug
-    read -p "Pakasir API Key     : " pakasir_key
-    read -p "Daily Price (IDR)   : " daily_price
-    
-    echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"public\", \"domain\": \"$domain\", \"pakasir_slug\": \"$pakasir_slug\", \"pakasir_api_key\": \"$pakasir_key\", \"daily_price\": $daily_price}" > /etc/zivpn/bot-config.json
-    bot_file="zivpn-paid-bot.go"
-  else
-    read -p "Bot Mode (public/private) [default: private]: " bot_mode
-    bot_mode=${bot_mode:-private}
-    
-    echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"$bot_mode\", \"domain\": \"$domain\"}" > /etc/zivpn/bot-config.json
-    bot_file="zivpn-bot.go"
-  fi
-  
-  run_silent "Downloading Bot" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/$bot_file -O /etc/zivpn/api/$bot_file"
-  
-  cd /etc/zivpn/api
-  run_silent "Downloading Bot Deps" "go get github.com/go-telegram-bot-api/telegram-bot-api/v5"
-  
-  if go build -o zivpn-bot "$bot_file" &>/dev/null; then
-    print_done "Compiling Bot"
-    
-    cat <<EOF > /etc/systemd/system/zivpn-bot.service
+    if [[ "$bot_type" == "2" ]]; then
+        read -p "Pakasir Project Slug: " pakasir_slug
+        read -p "Pakasir API Key     : " pakasir_key
+        read -p "Daily Price (IDR)   : " daily_price
+        
+        echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"public\", \"domain\": \"$domain\", \"pakasir_slug\": \"$pakasir_slug\", \"pakasir_api_key\": \"$pakasir_key\", \"daily_price\": $daily_price}" > /etc/zivpn/bot-config.json
+        bot_file="zivpn-paid-bot.go"
+    else
+        read -p "Bot Mode (public/private) [default: private]: " bot_mode
+        bot_mode=${bot_mode:-private}
+        
+        echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"$bot_mode\", \"domain\": \"$domain\"}" > /etc/zivpn/bot-config.json
+        bot_file="zivpn-bot.go"
+    fi
+    
+    run_silent "Downloading Bot" "wget -q https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/$bot_file -O /etc/zivpn/api/$bot_file"
+    
+    cd /etc/zivpn/api
+    run_silent "Downloading Bot Deps" "go get github.com/go-telegram-bot-api/telegram-bot-api/v5"
+    
+    if go build -o zivpn-bot "$bot_file" &>/dev/null; then
+        print_done "Compiling Bot"
+        
+        cat <<EOF > /etc/systemd/system/zivpn-bot.service
 [Unit]
 Description=ZiVPN Telegram Bot
 After=network.target zivpn-api.service
@@ -230,14 +232,14 @@ RestartSec=3
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl enable zivpn-bot.service &>/dev/null
-    systemctl start zivpn-bot.service &>/dev/null
-  else
-    print_fail "Compiling Bot"
-  fi
+        systemctl enable zivpn-bot.service &>/dev/null
+        systemctl start zivpn-bot.service &>/dev/null
+    else
+        print_fail "Compiling Bot"
+    fi
 else
-  print_task "Skipping Bot Setup"
-  echo ""
+    print_task "Skipping Bot Setup"
+    echo ""
 fi
 
 run_silent "Starting Services" "systemctl enable zivpn.service && systemctl start zivpn.service && systemctl enable zivpn-api.service && systemctl start zivpn-api.service"
@@ -258,31 +260,27 @@ ufw allow $API_PORT/tcp &>/dev/null
 # [TAMBAHAN] KLONING REPO MENU & SETUP OTOMATIS LOGIN
 # ==========================================================
 echo ""
-echo -e "${BOLD}Setup Menu Terminal & Control (Kjsbot)${RESET}"
+echo -e "${BOLD}Setup Menu Terminal & Control ($REPO_NAME)${RESET}"
 
 if [ ! -d "$REPO_DIR" ]; then
     run_silent "Cloning Menu Repository ($REPO_OWNER/$REPO_NAME)" "git clone $REPO_KLONING $REPO_DIR"
 fi
 
-if [ -f "$MENU_SCRIPT" ]; then
-    run_silent "Setting Menu Execution Permissions" "chmod +x $MENU_SCRIPT"
-    # Menambahkan panggilan menu ke .bashrc (agar muncul saat login SSH berikutnya)
-    MENU_CALL_SCRIPT="/root/control_menu.sh"
+# Unduh control_menu.sh dan siapkan otomatisasi
+MENU_CONTROL_URL="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/control_menu.sh"
+if wget -qO "$MENU_CONTROL_SCRIPT" "$MENU_CONTROL_URL" ; then
+    run_silent "Downloading Control Menu" "chmod +x $MENU_CONTROL_SCRIPT"
     
-    # 1. Unduh dan buat script control_menu.sh (berisi logic cek IP lisensi)
-    wget -qO "$MENU_CALL_SCRIPT" https://raw.githubusercontent.com/KjsZipvn/Kjsbot/main/control_menu.sh
-    chmod +x "$MENU_CALL_SCRIPT"
-    
-    # 2. Tambahkan panggilan ke .bashrc
+    # Tambahkan panggilan ke .bashrc
     if ! grep -q "control_menu.sh" /root/.bashrc; then
         echo -e "\n# --- Auto Kjsbot Control Menu ---" >> /root/.bashrc
-        echo "if [[ -f $MENU_CALL_SCRIPT ]]; then" >> /root/.bashrc
-        echo "    $MENU_CALL_SCRIPT" >> /root/.bashrc
+        echo "if [[ -f $MENU_CONTROL_SCRIPT ]]; then" >> /root/.bashrc
+        echo "    $MENU_CONTROL_SCRIPT" >> /root/.bashrc
         echo "fi" >> /root/.bashrc
     fi
-    print_done "Menu Terminal configured (Auto-run: $MENU_CALL_SCRIPT)"
+    print_done "Menu Terminal configured (Auto-run: $MENU_CONTROL_SCRIPT)"
 else
-    print_fail "Menu Script not found at $MENU_SCRIPT. Pastikan menu.sh ada di repositori!"
+    print_fail "Gagal mengunduh $MENU_CONTROL_SCRIPT. Pastikan file ada di repositori!"
 fi
 # ==========================================================
 # [AKHIR]
@@ -292,8 +290,8 @@ rm -f "$0" install.tmp install.log &>/dev/null
 
 echo ""
 echo -e "${BOLD}Installation Complete${RESET}"
-echo -e "Domain  : ${CYAN}$domain${RESET}"
-echo -e "API     : ${CYAN}$API_PORT${RESET}"
-echo -e "Token   : ${CYAN}$api_key${RESET}"
-echo -e "Dev     : ${CYAN}https://t.me/AutoFTBot${RESET}"
+echo -e "Domain  : ${CYAN}$domain${RESET}"
+echo -e "API     : ${CYAN}$API_PORT${RESET}"
+echo -e "Token   : ${CYAN}$api_key${RESET}"
+echo -e "Dev     : ${CYAN}https://t.me/AutoFTBot${RESET}"
 echo ""
