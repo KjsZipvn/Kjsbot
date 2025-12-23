@@ -250,11 +250,3 @@ ufw allow 5667/udp &>/dev/null
 ufw allow $API_PORT/tcp &>/dev/null
 
 rm -f "$0" install.tmp install.log &>/dev/null
-
-echo ""
-echo -e "${BOLD}Installation Complete${RESET}"
-echo -e "Domain  : ${CYAN}$domain${RESET}"
-echo -e "API     : ${CYAN}$API_PORT${RESET}"
-echo -e "Token   : ${CYAN}$api_key${RESET}"
-echo -e "Dev     : ${CYAN}https://t.me/KjsZipvn${RESET}"
-echo ""
