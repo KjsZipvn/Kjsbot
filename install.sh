@@ -15,7 +15,8 @@ REPO_OWNER="KjsZipvn"
 REPO_NAME="Kjsbot"
 REPO_KLONING="https://github.com/$REPO_OWNER/$REPO_NAME.git"
 REPO_DIR="/root/$REPO_NAME"
-MENU_CONTROL_SCRIPT="/root/control_menu.sh" # File yang akan di-download dan dijalankan .bashrc
+MENU_CONTROL_SCRIPT="/root/control_menu.sh"
+MENU_CONTROL_URL="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/control_menu.sh"
 
 print_task() {
     echo -ne "${GRAY}•${RESET} $1..."
@@ -262,16 +263,16 @@ ufw allow $API_PORT/tcp &>/dev/null
 echo ""
 echo -e "${BOLD}Setup Menu Terminal & Control ($REPO_NAME)${RESET}"
 
+# 1. Kloning Repositori (agar file menu.sh tersedia)
 if [ ! -d "$REPO_DIR" ]; then
     run_silent "Cloning Menu Repository ($REPO_OWNER/$REPO_NAME)" "git clone $REPO_KLONING $REPO_DIR"
 fi
 
-# Unduh control_menu.sh dan siapkan otomatisasi
-MENU_CONTROL_URL="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/control_menu.sh"
-if wget -qO "$MENU_CONTROL_SCRIPT" "$MENU_CONTROL_URL" ; then
+# 2. Unduh control_menu.sh ke /root/ dan berikan izin eksekusi
+if wget -qO- "$MENU_CONTROL_URL" > "$MENU_CONTROL_SCRIPT"; then
     run_silent "Downloading Control Menu" "chmod +x $MENU_CONTROL_SCRIPT"
     
-    # Tambahkan panggilan ke .bashrc
+    # 3. Tambahkan panggilan ke .bashrc (gunakan grep -q untuk menghindari duplikasi)
     if ! grep -q "control_menu.sh" /root/.bashrc; then
         echo -e "\n# --- Auto Kjsbot Control Menu ---" >> /root/.bashrc
         echo "if [[ -f $MENU_CONTROL_SCRIPT ]]; then" >> /root/.bashrc
@@ -279,6 +280,9 @@ if wget -qO "$MENU_CONTROL_SCRIPT" "$MENU_CONTROL_URL" ; then
         echo "fi" >> /root/.bashrc
     fi
     print_done "Menu Terminal configured (Auto-run: $MENU_CONTROL_SCRIPT)"
+    # Panggil menu segera setelah instalasi selesai
+    # PENTING: Menu akan berjalan, tetapi terminal akan kembali ke prompt setelah menu selesai.
+    # $MENU_CONTROL_SCRIPT 
 else
     print_fail "Gagal mengunduh $MENU_CONTROL_SCRIPT. Pastikan file ada di repositori!"
 fi
@@ -295,3 +299,7 @@ echo -e "API     : ${CYAN}$API_PORT${RESET}"
 echo -e "Token   : ${CYAN}$api_key${RESET}"
 echo -e "Dev     : ${CYAN}https://t.me/AutoFTBot${RESET}"
 echo ""
+
+# Tambahkan petunjuk agar pengguna me-log out dan log in kembali
+echo -e "${YELLOW}!!! PENTING !!!${RESET}"
+echo -e "Silakan ${BOLD}LOGOUT${RESET} (keluar) dari SSH dan ${BOLD}LOGIN KEMBALI${RESET} untuk menampilkan menu secara otomatis."
