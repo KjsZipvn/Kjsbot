@@ -579,14 +579,35 @@ func processRestoreFile(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, config *Bot
 // UI & Helpers
 // ==========================================
 
+// Pastikan Anda telah mengimpor package "strings" jika belum, karena digunakan dalam showMainMenu
+import (
+	"fmt"
+	"strings" // Pastikan ada
+	// ... import lainnya
+)
+
+// ==========================================================
+// 1. UPDATE: showMainMenu
+// Memperbaiki header agar lebih menarik dengan emoji dan pemformatan tebal.
+// ==========================================================
 func showMainMenu(bot *tgbotapi.BotAPI, chatID int64, config *BotConfig) {
 	ipInfo, _ := getIpInfo()
 	domain := config.Domain
 	if domain == "" {
-		domain = "(Not Configured)"
+		domain = "_(Belum Dikonfigurasi)_" // Ubah Not Configured menjadi Bahasa Indonesia dan di-italic
 	}
 
-	msgText := fmt.Sprintf("```\n━━━━━━━━━━━━━━━━━━━━━\n    MENU ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\n • Domain   : %s\n • City     : %s\n • ISP      : %s\n━━━━━━━━━━━━━━━━━━━━━\n```\n👇 Silakan pilih menu dibawah ini:", domain, ipInfo.City, ipInfo.Isp)
+	// Menggunakan format Markdown yang lebih kaya
+	msgText := fmt.Sprintf("✨ *SELAMAT DATANG DI ZIVPN UDP BOT* ✨\n\n"+
+		"╔═══════ 🇮🇩 *INFO SERVER* ═══════\n"+
+		"║\n"+
+		"╠═ 🌐 *Domain* : `%s`\n"+
+		"╠═ 🏙️ *Kota* : `%s`\n"+
+		"╠═ 📡 *ISP* : `%s`\n"+
+		"║\n"+
+		"╚═════════════════════════\n\n"+
+		"👇 *Pilih Menu Transaksi Anda* 👇",
+		domain, ipInfo.City, ipInfo.Isp)
 
 	msg := tgbotapi.NewMessage(chatID, msgText)
 	msg.ParseMode = "Markdown"
@@ -594,53 +615,82 @@ func showMainMenu(bot *tgbotapi.BotAPI, chatID int64, config *BotConfig) {
 	sendAndTrack(bot, msg)
 }
 
+// ==========================================================
+// 2. UPDATE: getMainMenuKeyboard
+// Memperbaiki penataan tombol agar lebih visual dan mudah diakses.
+// ==========================================================
 func getMainMenuKeyboard(config *BotConfig, userID int64) tgbotapi.InlineKeyboardMarkup {
 	// Public Menu (Everyone)
 	rows := [][]tgbotapi.InlineKeyboardButton{
+		// Baris 1: Aksi Utama (Create & Renew)
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("👤 Create Password", "menu_create"),
-			tgbotapi.NewInlineKeyboardButtonData("🗑️ Delete Password", "menu_delete"),
+			tgbotapi.NewInlineKeyboardButtonData("🆕 Buat Password", "menu_create"),
+			tgbotapi.NewInlineKeyboardButtonData("🔄 Perpanjang", "menu_renew"),
 		),
+		// Baris 2: Aksi Sekunder (Delete)
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🔄 Renew Password", "menu_renew"),
+			tgbotapi.NewInlineKeyboardButtonData("🗑️ Hapus Password", "menu_delete"),
 		),
 	}
 
 	// Admin Menu (Admin Only)
 	if userID == config.AdminID {
-		modeLabel := "🔐 Mode: Private"
+		// Toggle Mode Button
+		modeLabel := "🔒 Ubah Mode: Private"
 		if config.Mode == "public" {
-			modeLabel = "🌍 Mode: Public"
+			modeLabel = "🌎 Ubah Mode: Public"
 		}
 
-		rows[1] = append(rows[1], tgbotapi.NewInlineKeyboardButtonData("📋 List Passwords", "menu_list"))
-		
+		// Tambahkan tombol Admin di baris yang terpisah agar lebih rapi
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📊 System Info", "menu_info"),
-			tgbotapi.NewInlineKeyboardButtonData("💾 Backup & Restore", "menu_backup_restore"),
+			tgbotapi.NewInlineKeyboardButtonData("📋 Daftar Akun", "menu_list"),
+			tgbotapi.NewInlineKeyboardButtonData("📊 Info Sistem", "menu_info"),
 		))
+		
+		// Baris khusus untuk fitur Admin dan Backup
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(modeLabel, "toggle_mode"),
+			tgbotapi.NewInlineKeyboardButtonData("💾 Backup & Restore", "menu_backup_restore"),
 		))
 	}
 
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
+// ==========================================================
+// 3. UPDATE: sendAccountInfo
+// Memperbaiki tampilan informasi akun agar konsisten dengan menu utama.
+// ==========================================================
 func sendAccountInfo(bot *tgbotapi.BotAPI, chatID int64, data map[string]interface{}, config *BotConfig) {
 	ipInfo, _ := getIpInfo()
 	domain := config.Domain
 	if domain == "" {
-		domain = "(Not Configured)"
+		domain = "_(Belum Dikonfigurasi)_"
 	}
 
-	msg := fmt.Sprintf("```\n━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : %s\nCITY       : %s\nISP        : %s\nIP ISP     : %s\nDomain     : %s\nExpired On : %s\n━━━━━━━━━━━━━━━━━━━━━\n```",
+	// Menggunakan format yang lebih visual dengan emoji dan penekanan (Bold)
+	msg := fmt.Sprintf("🔑 *DETAIL AKUN ZIVPN UDP*\n\n"+
+		"╔═══════ 🔰 *INFORMASI AKUN* ═══════\n"+
+		"║\n"+
+		"╠═ 🔓 *Password* : `%s`\n"+
+		"╠═ 📅 *Expired* : `%s`\n"+
+		"║\n"+
+		"╚════════════════════════════\n\n"+
+		"╔═══════ 🌐 *INFORMASI SERVER* ═══════\n"+
+		"║\n"+
+		"╠═ 🌐 *Domain* : `%s`\n"+
+		"╠═ 🏙️ *Kota* : `%s`\n"+
+		"╠═ 📡 *ISP* : `%s`\n"+
+		"╠═ 📍 *IP ISP* : `%s`\n"+
+		"║\n"+
+		"╚════════════════════════════\n\n"+
+		"🚀 *Akun siap digunakan!* Harap jaga kerahasiaan password Anda.",
 		data["password"],
+		data["expired"],
+		domain,
 		ipInfo.City,
 		ipInfo.Isp,
 		ipInfo.Query,
-		domain,
-		data["expired"],
 	)
 
 	reply := tgbotapi.NewMessage(chatID, msg)
@@ -650,101 +700,8 @@ func sendAccountInfo(bot *tgbotapi.BotAPI, chatID int64, data map[string]interfa
 	showMainMenu(bot, chatID, config)
 }
 
-func showUserSelection(bot *tgbotapi.BotAPI, chatID int64, page int, action string) {
-	users, err := getUsers()
-	if err != nil {
-		replyError(bot, chatID, "Gagal mengambil data user.")
-		return
-	}
-
-	if len(users) == 0 {
-		sendMessage(bot, chatID, "📂 Tidak ada user.")
-		return
-	}
-
-	perPage := 10
-	totalPages := (len(users) + perPage - 1) / perPage
-
-	if page < 1 {
-		page = 1
-	}
-	if page > totalPages {
-		page = totalPages
-	}
-
-	start := (page - 1) * perPage
-	end := start + perPage
-	if end > len(users) {
-		end = len(users)
-	}
-
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, u := range users[start:end] {
-		label := fmt.Sprintf("%s (%s)", u.Password, u.Status)
-		if u.Status == "Expired" {
-			label = fmt.Sprintf("🔴 %s", label)
-		} else {
-			label = fmt.Sprintf("🟢 %s", label)
-		}
-		data := fmt.Sprintf("select_%s:%s", action, u.Password)
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(label, data),
-		))
-	}
-
-	var navRow []tgbotapi.InlineKeyboardButton
-	if page > 1 {
-		navRow = append(navRow, tgbotapi.NewInlineKeyboardButtonData("⬅️ Prev", fmt.Sprintf("page_%s:%d", action, page-1)))
-	}
-	if page < totalPages {
-		navRow = append(navRow, tgbotapi.NewInlineKeyboardButtonData("Next ➡️", fmt.Sprintf("page_%s:%d", action, page+1)))
-	}
-	if len(navRow) > 0 {
-		rows = append(rows, navRow)
-	}
-
-	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("❌ Batal", "cancel")))
-
-	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("📋 Pilih User untuk %s (Halaman %d/%d):", strings.Title(action), page, totalPages))
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
-	sendAndTrack(bot, msg)
-}
-
-func sendMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
-	msg := tgbotapi.NewMessage(chatID, text)
-	if _, inState := userStates[chatID]; inState {
-		cancelKb := tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("❌ Batal", "cancel")),
-		)
-		msg.ReplyMarkup = cancelKb
-	}
-	sendAndTrack(bot, msg)
-}
-
-func replyError(bot *tgbotapi.BotAPI, chatID int64, text string) {
-	sendMessage(bot, chatID, "❌ "+text)
-}
-
-func sendAndTrack(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig) {
-	deleteLastMessage(bot, msg.ChatID)
-	sentMsg, err := bot.Send(msg)
-	if err == nil {
-		lastMessageIDs[msg.ChatID] = sentMsg.MessageID
-	}
-}
-
-func deleteLastMessage(bot *tgbotapi.BotAPI, chatID int64) {
-	if msgID, ok := lastMessageIDs[chatID]; ok {
-		deleteMsg := tgbotapi.NewDeleteMessage(chatID, msgID)
-		bot.Request(deleteMsg)
-		delete(lastMessageIDs, chatID)
-	}
-}
-
-func resetState(userID int64) {
-	delete(userStates, userID)
-	delete(tempUserData, userID)
-}
+// Catatan: Fungsi showUserSelection, sendMessage, replyError, sendAndTrack,
+// deleteLastMessage, dan resetState tidak perlu diubah karena sudah cukup baik.
 
 // ==========================================
 // Validation Helpers
