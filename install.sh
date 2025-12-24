@@ -37,30 +37,35 @@ run_silent() {
 }
 
 clear
-echo -e "${BOLD}kjsbot UDP Installer${RESET}"
-echo -e "${GRAY}KjsZivpn Edition${RESET}"
+echo -e "${BOLD}ZiVPN UDP Installer${RESET}"
+echo -e "${GRAY}KjsZipvn Edition${RESET}"
 echo ""
 
+# System check
 if [[ "$(uname -s)" != "Linux" ]] || [[ "$(uname -m)" != "x86_64" ]]; then
   print_fail "System not supported (Linux AMD64 only)"
 fi
 
+# Reinstall if ZiVPN exists
 if [ -f /usr/local/bin/zivpn ]; then
-  echo -e "${YELLOW}! kjsbot detected. Reinstalling...${RESET}"
+  echo -e "${YELLOW}! ZiVPN detected. Reinstalling...${RESET}"
   systemctl stop zivpn.service &>/dev/null
   systemctl stop zivpn-api.service &>/dev/null
   systemctl stop zivpn-bot.service &>/dev/null
 fi
 
+# System update and timezone setup
 run_silent "Updating system" "sudo apt-get update"
 run_silent "Setting Timezone" "sudo timedatectl set-timezone Asia/Jakarta"
 
+# Install dependencies if Go is missing
 if ! command -v go &> /dev/null; then
   run_silent "Installing dependencies" "sudo apt-get install -y golang git net-tools"
 else
   print_done "Dependencies ready"
 fi
 
+# Domain configuration
 echo ""
 echo -ne "${BOLD}Domain Configuration${RESET}\n"
 while true; do
@@ -71,6 +76,7 @@ while true; do
 done
 echo ""
 
+# API Key configuration
 echo -ne "${BOLD}API Key Configuration${RESET}\n"
 generated_key=$(openssl rand -hex 16)
 echo -e "Generated Key: ${CYAN}$generated_key${RESET}"
@@ -83,14 +89,15 @@ fi
 echo -e "Using Key: ${GREEN}$api_key${RESET}"
 echo ""
 
+# Download core and configuration files
 systemctl stop zivpn.service &>/dev/null
 run_silent "Downloading Core" "wget -q https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64 -O /usr/local/bin/zivpn && chmod +x /usr/local/bin/zivpn"
-
 mkdir -p /etc/zivpn
 echo "$domain" > /etc/zivpn/domain
 echo "$api_key" > /etc/zivpn/apikey
 run_silent "Configuring" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/config.json -O /etc/zivpn/config.json"
 
+# Generate SSL certificates
 run_silent "Generating SSL" "openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj '/C=ID/ST=Jawa Barat/L=Bandung/O=KjsZipvn/OU=IT Department/CN=$domain' -keyout /etc/zivpn/zivpn.key -out /etc/zivpn/zivpn.crt"
 
 # Find a free API port
@@ -102,6 +109,7 @@ done
 echo "$API_PORT" > /etc/zivpn/api_port
 print_done "API Port selected: ${CYAN}$API_PORT${RESET}"
 
+# Update system settings for TCP/UDP
 cat >> /etc/sysctl.conf <<END
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
@@ -123,6 +131,7 @@ net.ipv4.udp_wmem_min=8192
 END
 sysctl -p &>/dev/null
 
+# Create systemd service for ZiVPN
 cat <<EOF > /etc/systemd/system/zivpn.service
 [Unit]
 Description=ZIVPN UDP VPN Server
@@ -145,9 +154,9 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
+# Set up API service
 mkdir -p /etc/zivpn/api
 run_silent "Setting up API" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/zivpn-api.go -O /etc/zivpn/api/zivpn-api.go && wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/go.mod -O /etc/zivpn/api/go.mod"
-
 cd /etc/zivpn/api
 if go build -o zivpn-api zivpn-api.go &>/dev/null; then
   print_done "Compiling API"
@@ -155,6 +164,7 @@ else
   print_fail "Compiling API"
 fi
 
+# Create systemd service for API
 cat <<EOF > /etc/systemd/system/zivpn-api.service
 [Unit]
 Description=ZiVPN Golang API Service
@@ -172,6 +182,7 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
+# Telegram Bot configuration
 echo ""
 echo -ne "${BOLD}Telegram Bot Configuration${RESET}\n"
 echo -ne "${GRAY}(Leave empty to skip)${RESET}\n"
@@ -181,7 +192,7 @@ read -p "Admin ID : " admin_id
 if [[ -n "$bot_token" ]] && [[ -n "$admin_id" ]]; then
   echo ""
   echo "Select Bot Type:"
-  echo "1) Free (Admin Only / Public Mode)"
+  echo "1) Free (Admin Only / Private Mode)"
   echo "2) Paid (Pakasir Payment Gateway)"
   read -p "Choice [1]: " bot_type
   bot_type=${bot_type:-1}
@@ -194,24 +205,30 @@ if [[ -n "$bot_token" ]] && [[ -n "$admin_id" ]]; then
     echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"public\", \"domain\": \"$domain\", \"pakasir_slug\": \"$pakasir_slug\", \"pakasir_api_key\": \"$pakasir_key\", \"daily_price\": $daily_price}" > /etc/zivpn/bot-config.json
     bot_file="zivpn-paid-bot.go"
   else
-    read -p "Bot Mode (public/private) [default: private]: " bot_mode
-    bot_mode=${bot_mode:-private}
+    # Bot Mode with default to private if no input
+    read -p "Bot Mode (1 for private, 2 for public) [default: 1]: " bot_mode
+    bot_mode=${bot_mode:-1}
+    if [[ "$bot_mode" == "1" ]]; then
+      bot_mode="private"
+    elif [[ "$bot_mode" == "2" ]]; then
+      bot_mode="public"
+    else
+      print_fail "Invalid selection! Please choose either 1 (private) or 2 (public)."
+    fi
     
     echo "{\"bot_token\": \"$bot_token\", \"admin_id\": $admin_id, \"mode\": \"$bot_mode\", \"domain\": \"$domain\"}" > /etc/zivpn/bot-config.json
     bot_file="zivpn-bot.go"
   fi
   
   run_silent "Downloading Bot" "wget -q https://raw.githubusercontent.com/KjsZipvn/kjsbot/main/$bot_file -O /etc/zivpn/api/$bot_file"
-  
   cd /etc/zivpn/api
   run_silent "Downloading Bot Deps" "go get github.com/go-telegram-bot-api/telegram-bot-api/v5"
   
   if go build -o zivpn-bot "$bot_file" &>/dev/null; then
     print_done "Compiling Bot"
-    
     cat <<EOF > /etc/systemd/system/zivpn-bot.service
 [Unit]
-Description=kjsbot Telegram Bot
+Description=ZiVPN Telegram Bot
 After=network.target zivpn-api.service
 
 [Service]
@@ -235,18 +252,30 @@ else
   echo ""
 fi
 
+# Starting services
 run_silent "Starting Services" "systemctl enable zivpn.service && systemctl start zivpn.service && systemctl enable zivpn-api.service && systemctl start zivpn-api.service"
 
-# Setup Cron for Auto-Expire
-echo -e "${YELLOW}Setting up Cron Job for Auto-Expire...${NC}"
+# Set up Cron for Auto-Expire
+echo -e "${YELLOW}Setting up Cron Job for Auto-Expire...${RESET}"
 cron_cmd="0 0 * * * /usr/bin/curl -s -X POST -H \"X-API-Key: \$(cat /etc/zivpn/apikey)\" http://127.0.0.1:\$(cat /etc/zivpn/api_port)/api/cron/expire >> /var/log/zivpn-cron.log 2>&1"
 (crontab -l 2>/dev/null | grep -v "/api/cron/expire"; echo "$cron_cmd") | crontab -
 print_done "Cron Job Configured"
 
+# Adjust firewall settings
 iface=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 iptables -t nat -A PREROUTING -i "$iface" -p udp --dport 6000:19999 -j DNAT --to-destination :5667 &>/dev/null
 ufw allow 6000:19999/udp &>/dev/null
 ufw allow 5667/udp &>/dev/null
 ufw allow $API_PORT/tcp &>/dev/null
 
+# Clean up temporary files
 rm -f "$0" install.tmp install.log &>/dev/null
+
+# Installation complete
+echo ""
+echo -e "${BOLD}Installation Complete${RESET}"
+echo -e "Domain  : ${CYAN}$domain${RESET}"
+echo -e "API     : ${CYAN}$API_PORT${RESET}"
+echo -e "Token   : ${CYAN}$api_key${RESET}"
+echo -e "Dev     : ${CYAN}https://t.me/AutoFTBot${RESET}"
+echo ""
